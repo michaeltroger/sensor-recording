@@ -32,8 +32,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private List<Sensor> mSensors = new ArrayList<>();
     private Button mRecordButton;
     private Button mTagButton;
-    private boolean isRecording = false;
+    private boolean mIsRecording = false;
     private FileWriter mFileWriter;
+
+    private static final String TEMP_FILENAME = "tempSensorData.csv";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +76,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         try {
             createTempFile();
+            renameFile("itWorks.csv");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -110,7 +113,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     public void record(View view) {
-        if (isRecording) {
+        if (mIsRecording) {
            stopRecording();
         } else {
            startRecording();
@@ -128,7 +131,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         mSensorManager.unregisterListener(this);
 
-        isRecording = false;
+        mIsRecording = false;
     }
     private void startRecording() {
         mRecordButton.setText(R.string.stop_recording);
@@ -138,30 +141,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
         }
 
-        isRecording = true;
+        mIsRecording = true;
     }
 
     // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
     private void createTempFile() throws IOException {
         String baseDir = getExternalStorageDirectory().getAbsolutePath();
-        String fileName = "TempSensorData.csv";
+        String fileName = TEMP_FILENAME;
         String filePath = baseDir + File.separator + fileName;
-        File f = new File(filePath );
+        File file = new File(filePath, TEMP_FILENAME);
         CSVWriter writer;
 
-        if(f.exists() && !f.isDirectory()){
-            mFileWriter = new FileWriter(filePath , true);
+        if(file.exists() && !file.isDirectory()){
+            mFileWriter = new FileWriter(filePath, true);
             writer = new CSVWriter(mFileWriter);
+            String[] data = {"5.23","2.4"};
+            writer.writeNext(data);
         }
         else {
             writer = new CSVWriter(new FileWriter(filePath));
+            String[] data = {"Ship Name","Scientist Name"};
+            writer.writeNext(data);
         }
-        String[] data = {"Ship Name","Scientist Name"};
-
-        writer.writeNext(data);
 
         writer.close();
     }
+
+    private void renameFile(String newFileName) {
+        File from = new File(getExternalStorageDirectory().getAbsolutePath(), TEMP_FILENAME);
+        File to = new File(getExternalStorageDirectory().getAbsolutePath(), newFileName);
+        from.renameTo(to);
+    }
+
+
 
 
 }
