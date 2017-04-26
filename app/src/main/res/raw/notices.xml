@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<notices>
+    <notice>
+        <name>GraphView</name>
+        <url>http://www.android-graphview.org/</url>
+        <copyright>Copyright 2016 Jonas Gehring</copyright>
+        <license>Apache Software License 2.0</license>
+    </notice>
+</notices>
