@@ -1,5 +1,6 @@
 <resources>
-    <string name="app_name">Sensor Visualization</string>
+    <string name="app_name">Sensor Recording</string>
+    <string name="record">Record</string>
     <string name="licenses">Licenses</string>
 
 </resources>

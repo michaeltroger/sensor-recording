@@ -1,4 +1,4 @@
-package com.michaeltroger.sensorvisualization;
+package com.michaeltroger.sensorrecording;
 
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -6,12 +6,15 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.RadioButton;
-import android.widget.RadioGroup;
 
-import com.jjoe64.graphview.GraphView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import de.psdev.licensesdialog.LicensesDialog;
@@ -19,50 +22,42 @@ import de.psdev.licensesdialog.LicensesDialog;
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private SensorManager mSensorManager;
-    private Sensor mSensor;
-    private Graph mGraph;
+    private List<Sensor> mSensors = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        GraphView graphView = (GraphView) findViewById(R.id.graph);
-        mGraph = new Graph(graphView);
-
         mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
         List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
-        mSensor = sensors.get(0);
 
-        RadioGroup radioGroup = (RadioGroup) findViewById(R.id.available_sensors);
+        ViewGroup sensorWrapper = (ViewGroup) findViewById(R.id.available_sensors);
 
         int id = 0;
         for(final Sensor sensor : sensors){
-            RadioButton radioButton = new RadioButton(this);
-            radioButton.setText(sensor.getName());
-            radioButton.setId(id++);
-            radioGroup.addView(radioButton);
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(sensor.getName());
+            checkBox.setId(id++);
+            sensorWrapper.addView(checkBox);
 
-            radioButton.setOnClickListener(new View.OnClickListener() {
+            checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
-                public void onClick(View v) {
-                    mSensorManager.unregisterListener(MainActivity.this);
-                    mSensor = sensor;
-                    mSensorManager.registerListener(MainActivity.this, mSensor, SensorManager.SENSOR_DELAY_NORMAL);
-                    mGraph.reset();
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if (isChecked) {
+                        mSensors.add(sensor);
+                    } else {
+                        mSensors.remove(sensor);
+                    }
                 }
             });
         }
 
-        RadioButton radioButton = (RadioButton) radioGroup.getChildAt(0);
-        radioButton.setChecked(true);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mGraph.reset();
-        mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     @Override
@@ -73,7 +68,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        mGraph.printSensorData(event.timestamp, event.values);
+        Log.d("test", event.sensor.getName());
     }
 
     @Override
@@ -85,5 +80,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 .setIncludeOwnLicense(true)
                 .build()
                 .show();
+    }
+
+    public void record(View view) {
+        mSensorManager.unregisterListener(this);
+        for (final Sensor sensor : mSensors) {
+            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
     }
 }

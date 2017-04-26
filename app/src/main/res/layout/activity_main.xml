@@ -4,22 +4,25 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.michaeltroger.sensorvisualization.MainActivity">
+    tools:context="com.michaeltroger.sensorrecording.MainActivity">
+
     <LinearLayout
     android:id="@+id/activity_main"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     >
-        <com.jjoe64.graphview.GraphView
-            android:layout_width="match_parent"
-            android:layout_height="200dip"
-            android:id="@+id/graph" />
-        <RadioGroup
+
+        <LinearLayout
             android:id="@+id/available_sensors"
             android:layout_height="wrap_content"
-            android:layout_width="wrap_content"/>
-
+            android:layout_width="wrap_content"
+            android:orientation="vertical" />
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/record"
+            android:onClick="record"/>
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
