@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Sensor Recording</string>
     <string name="record">Record</string>
+    <string name="stop_recording">Stop</string>
+    <string name="tag">Tag</string>
     <string name="licenses">Licenses</string>
 
 </resources>

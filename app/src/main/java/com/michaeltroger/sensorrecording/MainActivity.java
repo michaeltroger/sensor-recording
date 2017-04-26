@@ -9,9 +9,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.RadioButton;
 
 
 import java.util.ArrayList;
@@ -23,6 +23,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private SensorManager mSensorManager;
     private List<Sensor> mSensors = new ArrayList<>();
+    private Button mRecordButton;
+    private Button mTagButton;
+    private boolean isRecording = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +35,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
         List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
 
+        mRecordButton = (Button) findViewById(R.id.record);
+        mTagButton = (Button) findViewById(R.id.tag);
         ViewGroup sensorWrapper = (ViewGroup) findViewById(R.id.available_sensors);
 
         int id = 0;
@@ -49,6 +54,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     } else {
                         mSensors.remove(sensor);
                     }
+
+                    if (mSensors.size() == 0) {
+                        mRecordButton.setEnabled(false);
+                    } else {
+                        mRecordButton.setEnabled(true);
+                    }
                 }
             });
         }
@@ -63,12 +74,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     protected void onPause() {
         super.onPause();
-        mSensorManager.unregisterListener(this);
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        Log.d("test", event.sensor.getName());
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(event.sensor.getName());
+        stringBuilder.append("\n");
+        stringBuilder.append(event.timestamp);
+        Log.d("test", stringBuilder.toString());
     }
 
     @Override
@@ -83,9 +97,36 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     public void record(View view) {
-        mSensorManager.unregisterListener(this);
-        for (final Sensor sensor : mSensors) {
-            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+        if (isRecording) {
+           stopRecording();
+        } else {
+           startRecording();
         }
+
     }
+
+    public void tag(View view) {
+
+    }
+
+    private void stopRecording() {
+        mRecordButton.setText(R.string.record);
+        mTagButton.setEnabled(false);
+
+        mSensorManager.unregisterListener(this);
+
+        isRecording = false;
+    }
+    private void startRecording() {
+        mRecordButton.setText(R.string.stop_recording);
+        mTagButton.setEnabled(true);
+
+        for (final Sensor sensor : mSensors) {
+            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+        }
+
+        isRecording = true;
+    }
+
+
 }

@@ -12,17 +12,26 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     >
-
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tag"
+            android:id="@+id/tag"
+            android:enabled="false"
+            android:onClick="tag"/>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/record"
+            android:id="@+id/record"
+            android:enabled="false"
+            android:onClick="record"/>
         <LinearLayout
             android:id="@+id/available_sensors"
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"
             android:orientation="vertical" />
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/record"
-            android:onClick="record"/>
+
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
