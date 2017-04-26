@@ -14,10 +14,17 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 
 
+import com.opencsv.CSVWriter;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import de.psdev.licensesdialog.LicensesDialog;
+
+import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -26,6 +33,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button mRecordButton;
     private Button mTagButton;
     private boolean isRecording = false;
+    private FileWriter mFileWriter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +72,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             });
         }
 
+        try {
+            createTempFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override
@@ -78,11 +92,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(event.sensor.getName());
-        stringBuilder.append("\n");
-        stringBuilder.append(event.timestamp);
-        Log.d("test", stringBuilder.toString());
+        String toPrint = event.sensor.getName();
+        toPrint += "\n";
+        toPrint += event.timestamp;
+        Log.d("test", toPrint);
     }
 
     @Override
@@ -126,6 +139,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
 
         isRecording = true;
+    }
+
+    // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
+    private void createTempFile() throws IOException {
+        String baseDir = getExternalStorageDirectory().getAbsolutePath();
+        String fileName = "TempSensorData.csv";
+        String filePath = baseDir + File.separator + fileName;
+        File f = new File(filePath );
+        CSVWriter writer;
+
+        if(f.exists() && !f.isDirectory()){
+            mFileWriter = new FileWriter(filePath , true);
+            writer = new CSVWriter(mFileWriter);
+        }
+        else {
+            writer = new CSVWriter(new FileWriter(filePath));
+        }
+        String[] data = {"Ship Name","Scientist Name"};
+
+        writer.writeNext(data);
+
+        writer.close();
     }
 
 
