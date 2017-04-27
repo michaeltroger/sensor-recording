@@ -19,8 +19,15 @@ import com.opencsv.CSVWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import de.psdev.licensesdialog.LicensesDialog;
 
@@ -30,6 +37,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private SensorManager mSensorManager;
     private List<Sensor> mSensors = new ArrayList<>();
+    private Map<String, float[]> mCachedValues = new HashMap<>();
+    private List<Map<String, float[]>> mCachedValues1 = new ArrayList<>();
     private Button mRecordButton;
     private Button mTagButton;
     private boolean mIsRecording = false;
@@ -76,7 +85,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         try {
             createTempFile();
-            renameFile("itWorks.csv");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -95,10 +103,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        String toPrint = event.sensor.getName();
-        toPrint += "\n";
-        toPrint += event.timestamp;
-        Log.d("test", toPrint);
+        mCachedValues.put(event.sensor.getName(), event.values);
+        mCachedValues1.add(mCachedValues);
     }
 
     @Override
@@ -131,6 +137,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         mSensorManager.unregisterListener(this);
 
+        try {
+            createTempFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         mIsRecording = false;
     }
     private void startRecording() {
@@ -149,19 +161,36 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         String baseDir = getExternalStorageDirectory().getAbsolutePath();
         String fileName = TEMP_FILENAME;
         String filePath = baseDir + File.separator + fileName;
-        File file = new File(filePath, TEMP_FILENAME);
+        File file = new File(filePath);
         CSVWriter writer;
 
         if(file.exists() && !file.isDirectory()){
             mFileWriter = new FileWriter(filePath, true);
             writer = new CSVWriter(mFileWriter);
-            String[] data = {"5.23","2.4"};
-            writer.writeNext(data);
+
+            String[] data = new String[200];
+            int i = 0;
+
+            for (Map<String,float[]> m : mCachedValues1) {
+                for (float[] f : m.values()) {
+                    for (float f1 : f) {
+                        data[i] = Float.toString(f1);
+                        i++;
+                    }
+                }
+                writer.writeNext(data);
+                i = 0;
+            }
+
+
+            Log.d("tag", "file exists");
         }
         else {
             writer = new CSVWriter(new FileWriter(filePath));
-            String[] data = {"Ship Name","Scientist Name"};
-            writer.writeNext(data);
+
+            String[] dataArray = {"-","-","-"};
+            writer.writeNext(dataArray);
+            Log.d("tag", "file notexists");
         }
 
         writer.close();
@@ -172,8 +201,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         File to = new File(getExternalStorageDirectory().getAbsolutePath(), newFileName);
         from.renameTo(to);
     }
-
-
 
 
 }
