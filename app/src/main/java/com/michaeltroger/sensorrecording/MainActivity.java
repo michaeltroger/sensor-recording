@@ -215,7 +215,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void renameFile(String newFileName) {
         String fileName = newFileName.trim();
         if (fileName.length() == 0) {
-            fileName = TEMP_FILENAME + Math.random();
+            fileName = TEMP_FILENAME + System.currentTimeMillis();
         }
         File from = new File(getExternalStorageDirectory().getAbsolutePath(), TEMP_FILENAME);
         File to = new File(getExternalStorageDirectory().getAbsolutePath(), fileName);
@@ -238,6 +238,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             public void onClick(DialogInterface dialog, int which) {
                 String text = input.getText().toString();
                 renameFile(text);
+            }
+        });
+        builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                renameFile("");
             }
         });
         /*builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
