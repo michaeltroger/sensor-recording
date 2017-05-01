@@ -68,4 +68,8 @@ public class SensorValuesMeta {
 
         return units;
     }
+
+    public static int getSensorValuesSize(int sensorType) {
+        return getLabelsSensorValues(sensorType).length;
+    }
 }
