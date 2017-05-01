@@ -12,6 +12,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -56,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Runnable mTimer;
     private final Handler mHandler = new Handler();
     private long mStartTime;
+    private ViewGroup mSensorWrapper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,19 +66,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
 
         mRecordButton = (Button) findViewById(R.id.record);
         mTagButton = (Button) findViewById(R.id.tag);
-        ViewGroup sensorWrapper = (ViewGroup) findViewById(R.id.available_sensors);
+        mSensorWrapper = (ViewGroup) findViewById(R.id.available_sensors);
 
         int id = 0;
-        for(final Sensor sensor : sensors){
+        for (final Sensor sensor : sensors) {
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(sensor.getName());
             checkBox.setId(id++);
-            sensorWrapper.addView(checkBox);
+            mSensorWrapper.addView(checkBox);
 
             checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
@@ -133,7 +135,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
 
     public void showLicenseInfo(View view) {
         new LicensesDialog.Builder(this)
@@ -145,20 +148,31 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     public void record(View view) {
         if (mIsRecording) {
-           stopRecording();
+            stopRecording();
         } else {
-           startRecording();
+            startRecording();
         }
 
     }
 
     public void tag(View view) {
+        Log.d("test", "tag");
 
+        mCurrentCachedValues.put("tag", new float[]{1});
+
+        float seconds = (SystemClock.elapsedRealtimeNanos() - mStartTime) / 1000000000f;
+        SensorData sensorData = new SensorData();
+        sensorData.time = seconds;
+        sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
+
+        mAllCachedValuesNotSerializedYet.add(sensorData);
+        mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
     }
 
     private void stopRecording() {
         mRecordButton.setText(R.string.record);
         mTagButton.setEnabled(false);
+        mSensorWrapper.setVisibility(View.VISIBLE);
 
         mSensorManager.unregisterListener(this);
         mHandler.removeCallbacks(mTimer);
@@ -167,24 +181,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         mIsRecording = false;
     }
+
     private void startRecording() {
         mRecordButton.setText(R.string.stop_recording);
         mTagButton.setEnabled(true);
+        mSensorWrapper.setVisibility(View.INVISIBLE);
 
         mLabels.clear();
         mLabels.add("time");
+        mLabels.add("tag");
 
         mStartTime = SystemClock.elapsedRealtimeNanos();
 
         mCurrentCachedValues.clear();
+        mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
 
         Collections.sort(mSensors, new Comparator<Sensor>() {
             @Override
             public int compare(Sensor o1, Sensor o2) {
-                Sensor s1  = (Sensor)o1;
-                Sensor s2  = (Sensor)o2;
-
-                return s1.getName().compareTo(s2.getName());
+                return o1.getName().compareTo(o2.getName());
             }
         });
         for (final Sensor sensor : mSensors) {
@@ -214,7 +229,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         File file = new File(filePath);
         CSVWriter writer;
 
-        if(file.exists() && !file.isDirectory()){
+        if (file.exists() && !file.isDirectory()) {
             mFileWriter = new FileWriter(filePath, true);
             writer = new CSVWriter(mFileWriter);
 
@@ -241,8 +256,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
             Log.d("tag", "file exists");
-        }
-        else {
+        } else {
             writer = new CSVWriter(new FileWriter(filePath));
 
             String[] dataArray = mLabels.toArray(new String[mLabels.size()]);
@@ -259,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             fileName = System.currentTimeMillis() + TEMP_FILENAME;
         }
 
-        if (!fileName.endsWith(".csv")){
+        if (!fileName.endsWith(".csv")) {
             fileName += ".csv";
         }
         File from = new File(getExternalStorageDirectory().getAbsolutePath(), TEMP_FILENAME);
@@ -293,5 +307,4 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         builder.show();
 
     }
-
 }
