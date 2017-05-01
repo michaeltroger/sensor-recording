@@ -1,17 +1,22 @@
 package com.michaeltroger.sensorrecording;
 
+import android.content.DialogInterface;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Handler;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 
 
 import com.opencsv.CSVWriter;
@@ -19,15 +24,12 @@ import com.opencsv.CSVWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import de.psdev.licensesdialog.LicensesDialog;
 
@@ -37,14 +39,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private SensorManager mSensorManager;
     private List<Sensor> mSensors = new ArrayList<>();
-    private Map<String, float[]> mCachedValues = new HashMap<>();
-    private List<Map<String, float[]>> mCachedValues1 = new ArrayList<>();
+    private List<String> mLabels = new ArrayList<>();
+    private Map<String, float[]> mCurrentCachedValues = new HashMap<>();
+    private List<Map<String, float[]>> mAllCachedValuesNotSerializedYet = new ArrayList<>();
     private Button mRecordButton;
     private Button mTagButton;
     private boolean mIsRecording = false;
     private FileWriter mFileWriter;
 
     private static final String TEMP_FILENAME = "tempSensorData.csv";
+    private Runnable mTimer;
+    private final Handler mHandler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,12 +88,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             });
         }
 
-        try {
-            createTempFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        mTimer = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    createTempFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mHandler.postDelayed(this, 330);
+            }
+        };
     }
 
     @Override
@@ -103,8 +113,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        mCachedValues.put(event.sensor.getName(), event.values);
-        mCachedValues1.add(mCachedValues);
+        mCurrentCachedValues.put(event.sensor.getName(), Arrays.copyOf(event.values, event.values.length));
+        mAllCachedValuesNotSerializedYet.add(mCurrentCachedValues);
     }
 
     @Override
@@ -136,12 +146,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mTagButton.setEnabled(false);
 
         mSensorManager.unregisterListener(this);
+        mHandler.removeCallbacks(mTimer);
 
-        try {
-            createTempFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        showDialogAndRenameFile();
 
         mIsRecording = false;
     }
@@ -149,15 +156,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mRecordButton.setText(R.string.stop_recording);
         mTagButton.setEnabled(true);
 
+        mLabels.clear();
+
         for (final Sensor sensor : mSensors) {
             mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+
+            String[] labels = SensorValuesMeta.getLabelsSensorValues(sensor.getType());
+            mLabels.addAll(Arrays.asList(labels));
         }
+
+        mHandler.postDelayed(mTimer, 100);
 
         mIsRecording = true;
     }
 
     // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
-    private void createTempFile() throws IOException {
+    private synchronized void createTempFile() throws IOException {
         String baseDir = getExternalStorageDirectory().getAbsolutePath();
         String fileName = TEMP_FILENAME;
         String filePath = baseDir + File.separator + fileName;
@@ -168,18 +182,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mFileWriter = new FileWriter(filePath, true);
             writer = new CSVWriter(mFileWriter);
 
-            String[] data = new String[200];
-            int i = 0;
+            List<String> data = new ArrayList<>();
 
-            for (Map<String,float[]> m : mCachedValues1) {
+            Iterator<Map<String,float[]>> iter = mAllCachedValuesNotSerializedYet.iterator();
+            while (iter.hasNext()) {
+                Map<String,float[]> m = iter.next();
                 for (float[] f : m.values()) {
                     for (float f1 : f) {
-                        data[i] = Float.toString(f1);
-                        i++;
+                        data.add(Float.toString(f1));
                     }
                 }
-                writer.writeNext(data);
-                i = 0;
+                iter.remove();
+                String[] dataAsArray = data.toArray(new String[data.size()]);
+                writer.writeNext(dataAsArray);
+                data.clear();
             }
 
 
@@ -188,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         else {
             writer = new CSVWriter(new FileWriter(filePath));
 
-            String[] dataArray = {"-","-","-"};
+            String[] dataArray = mLabels.toArray(new String[mLabels.size()]);
             writer.writeNext(dataArray);
             Log.d("tag", "file notexists");
         }
@@ -197,10 +213,42 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void renameFile(String newFileName) {
+        String fileName = newFileName.trim();
+        if (fileName.length() == 0) {
+            fileName = TEMP_FILENAME + Math.random();
+        }
         File from = new File(getExternalStorageDirectory().getAbsolutePath(), TEMP_FILENAME);
-        File to = new File(getExternalStorageDirectory().getAbsolutePath(), newFileName);
+        File to = new File(getExternalStorageDirectory().getAbsolutePath(), fileName);
         from.renameTo(to);
     }
 
+    // source: https://stackoverflow.com/questions/10903754/input-text-dialog-android
+    private void showDialogAndRenameFile() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("File name");
+
+// Set up the input
+        final EditText input = new EditText(this);
+// Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+        builder.setView(input);
+
+// Set up the buttons
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String text = input.getText().toString();
+                renameFile(text);
+            }
+        });
+        /*builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });*/
+
+        builder.show();
+
+    }
 
 }
