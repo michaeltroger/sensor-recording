@@ -10,9 +10,7 @@ import android.os.SystemClock;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -31,8 +29,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,12 +48,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button mTagButton;
     private boolean mIsRecording = false;
     private FileWriter mFileWriter;
+    private String mTempFileName;
 
+    private static final String APP_DIRECTORY = "SensorRecording";
     private static final String TEMP_FILENAME = "tempSensorData.csv";
-    private Runnable mTimer;
+
     private final Handler mHandler = new Handler();
     private long mStartTime;
     private ViewGroup mSensorWrapper;
+    private AlertDialog.Builder mBuilder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,17 +97,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             });
         }
 
-        mTimer = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    createTempFile();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                mHandler.postDelayed(this, 330);
-            }
-        };
     }
 
     @Override
@@ -125,7 +113,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onSensorChanged(SensorEvent event) {
         mCurrentCachedValues.put(event.sensor.getName(), Arrays.copyOf(event.values, event.values.length));
 
-
         float seconds = (event.timestamp - mStartTime) / 1000000000f;
         SensorData sensorData = new SensorData();
         sensorData.time = seconds;
@@ -135,8 +122,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-    }
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
 
     public void showLicenseInfo(View view) {
         new LicensesDialog.Builder(this)
@@ -175,7 +161,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorWrapper.setVisibility(View.VISIBLE);
 
         mSensorManager.unregisterListener(this);
-        mHandler.removeCallbacks(mTimer);
 
         showDialogAndRenameFile();
 
@@ -216,18 +201,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mCurrentCachedValues.put(sensor.getName(), fl);
         }
 
-        mHandler.post(mTimer);
+        mTempFileName= System.currentTimeMillis() + TEMP_FILENAME;
+        try {
+            createTempFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         mIsRecording = true;
     }
 
     // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
-    private synchronized void createTempFile() throws IOException {
+    private void createTempFile() throws IOException {
+        new File(getExternalStorageDirectory(), APP_DIRECTORY).mkdirs();
+
         String baseDir = getExternalStorageDirectory().getAbsolutePath();
-        String fileName = TEMP_FILENAME;
-        String filePath = baseDir + File.separator + fileName;
+        String filePath = baseDir + File.separator + APP_DIRECTORY + File.separator + mTempFileName;
         File file = new File(filePath);
         CSVWriter writer;
+
+        String[] dataAsArray;
 
         if (file.exists() && !file.isDirectory()) {
             mFileWriter = new FileWriter(filePath, true);
@@ -235,9 +228,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             List<String> data = new ArrayList<>();
 
-            Iterator<SensorData> iter = mAllCachedValuesNotSerializedYet.iterator();
-            while (iter.hasNext()) {
-                SensorData m = iter.next();
+            Collections.sort(mAllCachedValuesNotSerializedYet);
+
+            for (SensorData m : mAllCachedValuesNotSerializedYet) {
                 data.add(Float.toString(m.time));
                 for (float[] f : m.values.values()) {
                     for (float f1 : f) {
@@ -248,19 +241,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         }
                     }
                 }
-                iter.remove();
-                String[] dataAsArray = data.toArray(new String[data.size()]);
+                dataAsArray = data.toArray(new String[data.size()]);
                 writer.writeNext(dataAsArray);
                 data.clear();
             }
-
+            mAllCachedValuesNotSerializedYet.clear();
 
             Log.d("tag", "file exists");
         } else {
             writer = new CSVWriter(new FileWriter(filePath));
 
-            String[] dataArray = mLabels.toArray(new String[mLabels.size()]);
-            writer.writeNext(dataArray);
+            dataAsArray = mLabels.toArray(new String[mLabels.size()]);
+            writer.writeNext(dataAsArray);
             Log.d("tag", "file notexists");
         }
 
@@ -269,15 +261,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private void renameFile(String newFileName) {
         String fileName = newFileName.trim();
-        if (fileName.length() == 0) {
-            fileName = System.currentTimeMillis() + TEMP_FILENAME;
-        }
 
         if (!fileName.endsWith(".csv")) {
             fileName += ".csv";
         }
-        File from = new File(getExternalStorageDirectory().getAbsolutePath(), TEMP_FILENAME);
-        File to = new File(getExternalStorageDirectory().getAbsolutePath(), fileName);
+        String baseDir = getExternalStorageDirectory().getAbsolutePath();
+        String appFolder = baseDir + File.separator + APP_DIRECTORY;
+        File from = new File(appFolder, mTempFileName);
+        File to = new File(appFolder, fileName);
         from.renameTo(to);
     }
 
@@ -293,18 +284,29 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String text = input.getText().toString();
+                try {
+                    createTempFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 renameFile(text);
+                Log.d("tag", "OK");
             }
         });
 
-        builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+
             @Override
-            public void onDismiss(DialogInterface dialog) {
-                renameFile("");
+            public void onCancel(DialogInterface dialog) {
+                try {
+                    createTempFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Log.d("tag", "cancelled");
             }
         });
-
         builder.show();
-
     }
+
 }
