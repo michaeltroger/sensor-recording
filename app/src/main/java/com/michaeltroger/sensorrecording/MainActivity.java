@@ -1,12 +1,11 @@
 package com.michaeltroger.sensorrecording;
 
-import android.content.DialogInterface;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.Handler;
 import android.os.SystemClock;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -16,7 +15,6 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 
 
@@ -28,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,13 +47,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private FileWriter mFileWriter;
     private String mTempFileName;
 
+    private static final String TAG = "MainActivity";
     private static final String APP_DIRECTORY = "SensorRecording";
     private static final String TEMP_FILENAME = "tempSensorData.csv";
 
-    private final Handler mHandler = new Handler();
     private long mStartTime;
     private ViewGroup mSensorWrapper;
-    private AlertDialog.Builder mBuilder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,33 +62,30 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
+        final List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
 
-        mRecordButton = (Button) findViewById(R.id.record);
-        mTagButton = (Button) findViewById(R.id.tag);
-        mSensorWrapper = (ViewGroup) findViewById(R.id.available_sensors);
+        mRecordButton = findViewById(R.id.record);
+        mTagButton = findViewById(R.id.tag);
+        mSensorWrapper = findViewById(R.id.available_sensors);
 
         int id = 0;
         for (final Sensor sensor : sensors) {
-            CheckBox checkBox = new CheckBox(this);
+            final CheckBox checkBox = new CheckBox(this);
             checkBox.setText(sensor.getName());
             checkBox.setId(id++);
             mSensorWrapper.addView(checkBox);
 
-            checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    if (isChecked) {
-                        mSensors.add(sensor);
-                    } else {
-                        mSensors.remove(sensor);
-                    }
+            checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    mSensors.add(sensor);
+                } else {
+                    mSensors.remove(sensor);
+                }
 
-                    if (mSensors.size() == 0) {
-                        mRecordButton.setEnabled(false);
-                    } else {
-                        mRecordButton.setEnabled(true);
-                    }
+                if (mSensors.isEmpty()) {
+                    mRecordButton.setEnabled(false);
+                } else {
+                    mRecordButton.setEnabled(true);
                 }
             });
         }
@@ -113,8 +106,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onSensorChanged(SensorEvent event) {
         mCurrentCachedValues.put(event.sensor.getName(), Arrays.copyOf(event.values, event.values.length));
 
-        float seconds = (event.timestamp - mStartTime) / 1000000000f;
-        SensorData sensorData = new SensorData();
+        final float seconds = (event.timestamp - mStartTime) / 1000000000f;
+        final SensorData sensorData = new SensorData();
         sensorData.time = seconds;
         sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
 
@@ -122,7 +115,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // accuracy is expected to not change
+    }
 
     public void showLicenseInfo(View view) {
         new LicensesDialog.Builder(this)
@@ -142,12 +137,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     public void tag(View view) {
-        Log.d("test", "tag");
-
         mCurrentCachedValues.put("tag", new float[]{1});
 
-        float seconds = (SystemClock.elapsedRealtimeNanos() - mStartTime) / 1000000000f;
-        SensorData sensorData = new SensorData();
+        final float seconds = (SystemClock.elapsedRealtimeNanos() - mStartTime) / 1000000000f;
+        final SensorData sensorData = new SensorData();
         sensorData.time = seconds;
         sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
 
@@ -181,19 +174,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mCurrentCachedValues.clear();
         mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
 
-        Collections.sort(mSensors, new Comparator<Sensor>() {
-            @Override
-            public int compare(Sensor o1, Sensor o2) {
-                return o1.getName().compareTo(o2.getName());
-            }
-        });
+        Collections.sort(mSensors, (o1, o2) -> o1.getName().compareTo(o2.getName()));
         for (final Sensor sensor : mSensors) {
             mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
 
-            String[] labels = SensorLegend.getLegend(sensor.getType());
+            final String[] labels = SensorLegend.getLegend(sensor.getType());
             mLabels.addAll(Arrays.asList(labels));
 
-            float[] fl = new float[labels.length];
+            final float[] fl = new float[labels.length];
             for (int i = 0; i < fl.length; i++) {
                 fl[i] = Float.MIN_VALUE;
             }
@@ -205,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         try {
             createTempFile();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(TAG, e.toString());
         }
 
         mIsRecording = true;
@@ -215,10 +203,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void createTempFile() throws IOException {
         new File(getExternalStorageDirectory(), APP_DIRECTORY).mkdirs();
 
-        String baseDir = getExternalStorageDirectory().getAbsolutePath();
-        String filePath = baseDir + File.separator + APP_DIRECTORY + File.separator + mTempFileName;
-        File file = new File(filePath);
-        CSVWriter writer;
+        final String baseDir = getExternalStorageDirectory().getAbsolutePath();
+        final String filePath = baseDir + File.separator + APP_DIRECTORY + File.separator + mTempFileName;
+        final File file = new File(filePath);
+        final CSVWriter writer;
 
         String[] dataAsArray;
 
@@ -226,14 +214,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mFileWriter = new FileWriter(filePath, true);
             writer = new CSVWriter(mFileWriter);
 
-            List<String> data = new ArrayList<>();
+            final List<String> data = new ArrayList<>();
 
             Collections.sort(mAllCachedValuesNotSerializedYet);
 
-            for (SensorData m : mAllCachedValuesNotSerializedYet) {
+            for (final SensorData m : mAllCachedValuesNotSerializedYet) {
                 data.add(Float.toString(m.time));
-                for (float[] f : m.values.values()) {
-                    for (float f1 : f) {
+                for (final float[] f : m.values.values()) {
+                    for (final float f1 : f) {
                         if (f1 == Float.MIN_VALUE) {
                             data.add("");
                         } else if (f1 != 0) {
@@ -247,66 +235,59 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
             mAllCachedValuesNotSerializedYet.clear();
 
-            Log.d("tag", "file exists");
+            Log.d(TAG, "file exists");
         } else {
             writer = new CSVWriter(new FileWriter(filePath));
 
             dataAsArray = mLabels.toArray(new String[mLabels.size()]);
             writer.writeNext(dataAsArray);
-            Log.d("tag", "file notexists");
+            Log.d(TAG, "file does not exists");
         }
 
         writer.close();
     }
 
-    private void renameFile(String oldFileName, String newFileName) {
+    private void renameFile(@NonNull final String oldFileName, @NonNull final String newFileName) {
         String fileName = newFileName.trim();
 
         if (!fileName.endsWith(".csv")) {
             fileName += ".csv";
         }
-        String baseDir = getExternalStorageDirectory().getAbsolutePath();
-        String appFolder = baseDir + File.separator + APP_DIRECTORY;
-        File from = new File(appFolder, oldFileName);
-        File to = new File(appFolder, fileName);
+        final String baseDir = getExternalStorageDirectory().getAbsolutePath();
+        final String appFolder = baseDir + File.separator + APP_DIRECTORY;
+        final File from = new File(appFolder, oldFileName);
+        final File to = new File(appFolder, fileName);
         from.renameTo(to);
     }
 
     // source: https://stackoverflow.com/questions/10903754/input-text-dialog-android
     private void showDialogAndRenameFile() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("File name");
 
         final EditText input = new EditText(this);
         builder.setView(input);
 
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String newFileName = input.getText().toString();
-                String oldFileName = mTempFileName;
-                try {
-                    createTempFile();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                renameFile(oldFileName, newFileName);
-                Log.d("tag", "OK");
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            final String newFileName = input.getText().toString();
+            final String oldFileName = mTempFileName;
+            try {
+                createTempFile();
+            } catch (IOException e) {
+                Log.e(TAG, e.toString());
             }
+
+            renameFile(oldFileName, newFileName);
+            Log.d(TAG, "OK");
         });
 
-        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
-
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                try {
-                    createTempFile();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                Log.d("tag", "cancelled");
+        builder.setOnCancelListener(dialog -> {
+            try {
+                createTempFile();
+            } catch (IOException e) {
+                Log.e(TAG, e.toString());
             }
+            Log.d(TAG, "cancelled");
         });
         builder.show();
     }
