@@ -1,41 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context="com.michaeltroger.sensorrecording.MainActivity">
+<layout
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <data>
+        <variable name="handlers" type="com.michaeltroger.sensorrecording.MainActivity.MyHandlers"/>
+    </data>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-    <LinearLayout
-    android:id="@+id/activity_main"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    >
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tag"
-            android:id="@+id/tag"
-            android:enabled="false"
-            android:onClick="tag"/>
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/record"
-            android:id="@+id/record"
-            android:enabled="false"
-            android:onClick="record"/>
         <LinearLayout
-            android:id="@+id/available_sensors"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_width="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical">
 
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/licenses"
-            android:onClick="showLicenseInfo"/>
-    </LinearLayout>
-</ScrollView>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tag"
+                android:id="@+id/btnTag"
+                android:enabled="false"
+                android:onClick="@{handlers::tag}"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/record"
+                android:id="@+id/btnRecord"
+                android:enabled="false"
+                android:onClick="@{handlers::record}"/>
+
+            <LinearLayout
+                android:id="@+id/available_sensors"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:orientation="vertical" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/licenses"
+                android:onClick="@{handlers::showLicenseInfo}"/>
+        </LinearLayout>
+    </ScrollView>
+</layout>

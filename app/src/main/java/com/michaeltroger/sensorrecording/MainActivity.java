@@ -1,5 +1,6 @@
 package com.michaeltroger.sensorrecording;
 
+import android.databinding.DataBindingUtil;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -13,11 +14,11 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 
 
+import com.michaeltroger.sensorrecording.databinding.ActivityMainBinding;
 import com.opencsv.CSVWriter;
 
 import java.io.File;
@@ -41,8 +42,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private List<String> mLabels = new ArrayList<>();
     private Map<String, float[]> mCurrentCachedValues = new LinkedHashMap<>();
     private List<SensorData> mAllCachedValuesNotSerializedYet = new ArrayList<>();
-    private Button mRecordButton;
-    private Button mTagButton;
+
+    private ActivityMainBinding binding;
     private boolean mIsRecording = false;
     private FileWriter mFileWriter;
     private String mTempFileName;
@@ -52,28 +53,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private static final String TEMP_FILENAME = "tempSensorData.csv";
 
     private long mStartTime;
-    private ViewGroup mSensorWrapper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        binding.setHandlers(new MyHandlers());
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         final List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
-
-        mRecordButton = findViewById(R.id.record);
-        mTagButton = findViewById(R.id.tag);
-        mSensorWrapper = findViewById(R.id.available_sensors);
 
         int id = 0;
         for (final Sensor sensor : sensors) {
             final CheckBox checkBox = new CheckBox(this);
             checkBox.setText(sensor.getName());
             checkBox.setId(id++);
-            mSensorWrapper.addView(checkBox);
+            binding.availableSensors.addView(checkBox);
 
             checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) {
@@ -83,9 +82,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
 
                 if (mSensors.isEmpty()) {
-                    mRecordButton.setEnabled(false);
+                    binding.btnRecord.setEnabled(false);
                 } else {
-                    mRecordButton.setEnabled(true);
+                    binding.btnRecord.setEnabled(true);
                 }
             });
         }
@@ -119,39 +118,42 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // accuracy is expected to not change
     }
 
-    public void showLicenseInfo(View view) {
-        new LicensesDialog.Builder(this)
-                .setNotices(R.raw.notices)
-                .setIncludeOwnLicense(true)
-                .build()
-                .show();
-    }
-
-    public void record(View view) {
-        if (mIsRecording) {
-            stopRecording();
-        } else {
-            startRecording();
+    public class MyHandlers {
+        public void showLicenseInfo(View view) {
+            new LicensesDialog.Builder(MainActivity.this)
+                    .setNotices(R.raw.notices)
+                    .setIncludeOwnLicense(true)
+                    .build()
+                    .show();
         }
 
+        public void record(View view) {
+            if (mIsRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+
+        }
+
+        public void tag(View view) {
+            mCurrentCachedValues.put("tag", new float[]{1});
+
+            final float seconds = (SystemClock.elapsedRealtimeNanos() - mStartTime) / 1000000000f;
+            final SensorData sensorData = new SensorData();
+            sensorData.time = seconds;
+            sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
+
+            mAllCachedValuesNotSerializedYet.add(sensorData);
+            mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
+        }
     }
 
-    public void tag(View view) {
-        mCurrentCachedValues.put("tag", new float[]{1});
-
-        final float seconds = (SystemClock.elapsedRealtimeNanos() - mStartTime) / 1000000000f;
-        final SensorData sensorData = new SensorData();
-        sensorData.time = seconds;
-        sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
-
-        mAllCachedValuesNotSerializedYet.add(sensorData);
-        mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
-    }
 
     private void stopRecording() {
-        mRecordButton.setText(R.string.record);
-        mTagButton.setEnabled(false);
-        mSensorWrapper.setVisibility(View.VISIBLE);
+        binding.btnRecord.setText(R.string.record);
+        binding.btnTag.setEnabled(false);
+        binding.availableSensors.setVisibility(View.VISIBLE);
 
         mSensorManager.unregisterListener(this);
 
@@ -161,9 +163,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void startRecording() {
-        mRecordButton.setText(R.string.stop_recording);
-        mTagButton.setEnabled(true);
-        mSensorWrapper.setVisibility(View.INVISIBLE);
+        binding.btnRecord.setText(R.string.stop_recording);
+        binding.btnTag.setEnabled(true);
+        binding.availableSensors.setVisibility(View.INVISIBLE);
 
         mLabels.clear();
         mLabels.add("time");
