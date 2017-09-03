@@ -188,12 +188,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
         for (final Sensor sensor : mSensors) {
-            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+            mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
 
-            String[] labels = SensorValuesMeta.getLabelsSensorValues(sensor.getType());
+            String[] labels = SensorLegend.getLegend(sensor.getType());
             mLabels.addAll(Arrays.asList(labels));
 
-            float[] fl = new float[SensorValuesMeta.getSensorValuesSize(sensor.getType())];
+            float[] fl = new float[labels.length];
             for (int i = 0; i < fl.length; i++) {
                 fl[i] = Float.MIN_VALUE;
             }
@@ -259,7 +259,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         writer.close();
     }
 
-    private void renameFile(String newFileName) {
+    private void renameFile(String oldFileName, String newFileName) {
         String fileName = newFileName.trim();
 
         if (!fileName.endsWith(".csv")) {
@@ -267,7 +267,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
         String baseDir = getExternalStorageDirectory().getAbsolutePath();
         String appFolder = baseDir + File.separator + APP_DIRECTORY;
-        File from = new File(appFolder, mTempFileName);
+        File from = new File(appFolder, oldFileName);
         File to = new File(appFolder, fileName);
         from.renameTo(to);
     }
@@ -283,13 +283,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                String text = input.getText().toString();
+                String newFileName = input.getText().toString();
+                String oldFileName = mTempFileName;
                 try {
                     createTempFile();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                renameFile(text);
+
+                renameFile(oldFileName, newFileName);
                 Log.d("tag", "OK");
             }
         });
