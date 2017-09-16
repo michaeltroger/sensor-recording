@@ -193,6 +193,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         mTempFileName= System.currentTimeMillis() + TEMP_FILENAME;
 
+        // TODO: check whether task is still running
         new PersistDataTask().execute();
 
         mIsRecording = true;
@@ -299,11 +300,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         builder.setPositiveButton("OK", (dialog, which) -> {
             final String newFileName = input.getText().toString();
             final String oldFileName = mTempFileName;
+            // TODO: check whether task is still running
             new PersistDataTask().execute(newFileName, oldFileName);
             Log.d(TAG, "OK");
         });
 
         builder.setOnCancelListener(dialog -> {
+            // TODO: check whether task is still running
             new PersistDataTask().execute();
             Log.d(TAG, "cancelled");
         });
