@@ -5,6 +5,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.michaeltroger.sensorrecording.databinding.ActivityMainBinding;
 import com.michaeltroger.sensorvaluelegend.SensorValueLegend;
@@ -47,7 +49,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private FileWriter mFileWriter;
     private String mTempFileName;
 
-    private static final String TAG = "MainActivity";
+    private static final String TAG = MainActivity.class.getSimpleName();
     private static final String APP_DIRECTORY = "SensorRecording";
     private static final String TEMP_FILENAME = "tempSensorData.csv";
 
@@ -87,7 +89,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             });
         }
-
     }
 
     @Override
@@ -191,61 +192,87 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
 
         mTempFileName= System.currentTimeMillis() + TEMP_FILENAME;
-        try {
-            createTempFile();
-        } catch (IOException e) {
-            Log.e(TAG, e.toString());
-        }
+
+        new PersistDataTask().execute();
 
         mIsRecording = true;
     }
 
-    // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
-    private void createTempFile() throws IOException {
-        new File(getExternalStorageDirectory(), APP_DIRECTORY).mkdirs();
+    private class PersistDataTask extends AsyncTask<String, Void, Boolean> {
 
-        final String baseDir = getExternalStorageDirectory().getAbsolutePath();
-        final String filePath = baseDir + File.separator + APP_DIRECTORY + File.separator + mTempFileName;
-        final File file = new File(filePath);
-        final CSVWriter writer;
+        @Override
+        protected Boolean doInBackground(String... filenames) {
+            boolean savedOnlyTemporaryFile = true;
+            // source: https://stackoverflow.com/questions/27772011/how-to-export-data-to-csv-file-in-android
+            new File(getExternalStorageDirectory(), APP_DIRECTORY).mkdirs();
 
-        String[] dataAsArray;
+            final String baseDir = getExternalStorageDirectory().getAbsolutePath();
+            final String filePath = baseDir + File.separator + APP_DIRECTORY + File.separator + mTempFileName;
+            final File file = new File(filePath);
+            CSVWriter writer = null;
 
-        if (file.exists() && !file.isDirectory()) {
-            mFileWriter = new FileWriter(filePath, true);
-            writer = new CSVWriter(mFileWriter);
+            String[] dataAsArray;
 
-            final List<String> data = new ArrayList<>();
+            try {
+                if (file.exists() && !file.isDirectory()) {
+                    mFileWriter = new FileWriter(filePath, true);
+                    writer = new CSVWriter(mFileWriter);
 
-            Collections.sort(mAllCachedValuesNotSerializedYet);
+                    final List<String> data = new ArrayList<>();
 
-            for (final SensorData m : mAllCachedValuesNotSerializedYet) {
-                data.add(Float.toString(m.time));
-                for (final float[] f : m.values.values()) {
-                    for (final float f1 : f) {
-                        if (f1 == Float.MIN_VALUE) {
-                            data.add("");
-                        } else if (f1 != 0) {
-                            data.add(Float.toString(f1));
+                    Collections.sort(mAllCachedValuesNotSerializedYet);
+
+                    for (final SensorData m : mAllCachedValuesNotSerializedYet) {
+                        data.add(Float.toString(m.time));
+                        for (final float[] f : m.values.values()) {
+                            for (final float f1 : f) {
+                                if (f1 == Float.MIN_VALUE) {
+                                    data.add("");
+                                } else if (f1 != 0) {
+                                    data.add(Float.toString(f1));
+                                }
+                            }
                         }
+                        dataAsArray = data.toArray(new String[data.size()]);
+                        writer.writeNext(dataAsArray);
+                        data.clear();
                     }
+                    mAllCachedValuesNotSerializedYet.clear();
+                    Log.d(TAG, "file exists");
+
+                } else {
+                    mFileWriter = new FileWriter(filePath);
+                    writer = new CSVWriter(mFileWriter);
+
+                    dataAsArray = mLabels.toArray(new String[mLabels.size()]);
+                    writer.writeNext(dataAsArray);
+                    Log.d(TAG, "file does not exists");
                 }
-                dataAsArray = data.toArray(new String[data.size()]);
-                writer.writeNext(dataAsArray);
-                data.clear();
+
+                writer.close();
+
+            } catch (IOException e) {
+                Log.e(TAG, e.toString());
             }
-            mAllCachedValuesNotSerializedYet.clear();
 
-            Log.d(TAG, "file exists");
-        } else {
-            writer = new CSVWriter(new FileWriter(filePath));
+            if (filenames.length == 2) {
+                final String newFilename = filenames[0];
+                final String oldFilename = filenames[1];
+                renameFile(oldFilename, newFilename);
+                savedOnlyTemporaryFile = false;
+            }
 
-            dataAsArray = mLabels.toArray(new String[mLabels.size()]);
-            writer.writeNext(dataAsArray);
-            Log.d(TAG, "file does not exists");
+            return savedOnlyTemporaryFile;
         }
 
-        writer.close();
+        @Override
+        protected void onPostExecute(Boolean savedOnlyTemporaryFile) {
+            String fileSavedText = "file saved";
+            if (savedOnlyTemporaryFile) {
+                fileSavedText += " only temporary";
+            }
+            Toast.makeText(getApplicationContext(), fileSavedText, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void renameFile(@NonNull final String oldFileName, @NonNull final String newFileName) {
@@ -272,22 +299,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         builder.setPositiveButton("OK", (dialog, which) -> {
             final String newFileName = input.getText().toString();
             final String oldFileName = mTempFileName;
-            try {
-                createTempFile();
-            } catch (IOException e) {
-                Log.e(TAG, e.toString());
-            }
-
-            renameFile(oldFileName, newFileName);
+            new PersistDataTask().execute(newFileName, oldFileName);
             Log.d(TAG, "OK");
         });
 
         builder.setOnCancelListener(dialog -> {
-            try {
-                createTempFile();
-            } catch (IOException e) {
-                Log.e(TAG, e.toString());
-            }
+            new PersistDataTask().execute();
             Log.d(TAG, "cancelled");
         });
         builder.show();
