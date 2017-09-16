@@ -17,6 +17,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 
 import com.michaeltroger.sensorrecording.databinding.ActivityMainBinding;
+import com.michaeltroger.sensorvaluelegend.SensorValueLegend;
 import com.opencsv.CSVWriter;
 
 import java.io.File;
@@ -178,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         for (final Sensor sensor : mSensors) {
             mSensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
 
-            final String[] labels = SensorLegend.getLegend(sensor.getType());
+            final String[] labels = SensorValueLegend.getLegend(sensor.getType());
             mLabels.addAll(Arrays.asList(labels));
 
             final float[] fl = new float[labels.length];
