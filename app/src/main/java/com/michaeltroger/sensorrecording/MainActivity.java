@@ -44,10 +44,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
     private SensorManager mSensorManager;
-    private List<Sensor> mSensors = new ArrayList<>();
-    private List<String> mLabels = new ArrayList<>();
-    private Map<String, float[]> mCurrentCachedValues = new LinkedHashMap<>();
-    private List<SensorData> mAllCachedValuesNotSerializedYet = new ArrayList<>();
+    private final List<Sensor> mSensors = new ArrayList<>();
+    private final List<String> mLabels = new ArrayList<>();
+    private final Map<String, float[]> mCurrentCachedValues = new LinkedHashMap<>();
+    private final List<SensorData> mAllCachedValuesNotSerializedYet = new ArrayList<>();
 
     private ActivityMainBinding binding;
     private boolean mIsRecording = false;
@@ -171,15 +171,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
     private void stopRecording() {
+        mIsRecording = false;
+
+        binding.btnRecord.setEnabled(false);
         binding.btnRecord.setText(R.string.record);
         binding.btnTag.setEnabled(false);
-        binding.availableSensors.setVisibility(View.VISIBLE);
 
         mSensorManager.unregisterListener(this);
 
         showDialogAndRenameFile();
-
-        mIsRecording = false;
     }
 
     private void startRecording() {
@@ -211,9 +211,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mCurrentCachedValues.put(sensor.getName(), fl);
         }
 
-        mTempFileName= System.currentTimeMillis() + TEMP_FILENAME;
+        mTempFileName = System.currentTimeMillis() + TEMP_FILENAME;
 
-        // TODO: check whether task is still running
+        binding.btnRecord.setEnabled(false);
         new PersistDataTask().execute();
 
         mIsRecording = true;
@@ -293,6 +293,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 fileSavedText += " only temporary";
             }
             Toast.makeText(getApplicationContext(), fileSavedText, Toast.LENGTH_SHORT).show();
+            binding.btnRecord.setEnabled(true);
+
+            if (!mIsRecording) {
+                binding.availableSensors.setVisibility(View.VISIBLE);
+            }
         }
     }
 
@@ -320,13 +325,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         builder.setPositiveButton("OK", (dialog, which) -> {
             final String newFileName = input.getText().toString();
             final String oldFileName = mTempFileName;
-            // TODO: check whether task is still running
             new PersistDataTask().execute(newFileName, oldFileName);
             Log.d(TAG, "OK");
         });
 
         builder.setOnCancelListener(dialog -> {
-            // TODO: check whether task is still running
             new PersistDataTask().execute();
             Log.d(TAG, "cancelled");
         });
