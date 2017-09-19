@@ -188,7 +188,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mLabels.add("time");
         mLabels.add("tag");
 
-        mStartTime = SystemClock.elapsedRealtimeNanos();
 
         mCurrentCachedValues.clear();
         mCurrentCachedValues.put("tag", new float[]{Float.MIN_VALUE});
@@ -215,6 +214,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         samplingTask = new SamplingTask();
         samplingTask.execute();
+        mStartTime = SystemClock.elapsedRealtimeNanos();
 
         mIsRecording = true;
     }
