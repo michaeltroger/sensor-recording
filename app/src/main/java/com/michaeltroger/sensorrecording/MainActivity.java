@@ -267,8 +267,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                     final List<String> data = new ArrayList<>();
 
-                    Collections.sort(mAllCachedValuesNotSerializedYet);
-
                     for (final SensorData m : mAllCachedValuesNotSerializedYet) {
                         data.add(Float.toString(m.time));
                         for (final float[] f : m.values.values()) {
