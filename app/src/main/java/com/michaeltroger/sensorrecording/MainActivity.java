@@ -43,6 +43,7 @@ import static android.os.Environment.getExternalStorageDirectory;
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
+    private static final long SAMPLING_RATE_NANOS = 20000000; // = 50hz
     private SensorManager mSensorManager;
     private final List<Sensor> mSensors = new ArrayList<>();
     private final List<String> mLabels = new ArrayList<>();
@@ -53,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private boolean mIsRecording = false;
     private FileWriter mFileWriter;
     private String mTempFileName;
+
+    private SamplingTask samplingTask;
 
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final String APP_DIRECTORY = "SensorRecording";
@@ -124,13 +127,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public void onSensorChanged(SensorEvent event) {
         mCurrentCachedValues.put(event.sensor.getName(), Arrays.copyOf(event.values, event.values.length));
-
-        final float seconds = (event.timestamp - mStartTime) / 1000000000f;
-        final SensorData sensorData = new SensorData();
-        sensorData.time = seconds;
-        sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
-
-        mAllCachedValuesNotSerializedYet.add(sensorData);
     }
 
     @Override
@@ -178,6 +174,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         binding.btnTag.setEnabled(false);
 
         mSensorManager.unregisterListener(this);
+        samplingTask.cancel(true);
 
         showDialogAndRenameFile();
     }
@@ -216,7 +213,36 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         binding.btnRecord.setEnabled(false);
         new PersistDataTask().execute();
 
+        samplingTask = new SamplingTask();
+        samplingTask.execute();
+
         mIsRecording = true;
+    }
+
+    private class SamplingTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            long startTimeNanos = SystemClock.elapsedRealtimeNanos();
+
+            while (true) {
+                if (isCancelled()) {
+                    return null;
+                }
+
+                final long currentTimeNanos = SystemClock.elapsedRealtimeNanos();
+
+                if (currentTimeNanos >= startTimeNanos + SAMPLING_RATE_NANOS) {
+                    startTimeNanos = currentTimeNanos;
+                    final float seconds = (currentTimeNanos - mStartTime) / 1000000000f;
+                    final SensorData sensorData = new SensorData();
+                    sensorData.time = seconds;
+                    sensorData.values = new LinkedHashMap<>(mCurrentCachedValues);
+
+                    mAllCachedValuesNotSerializedYet.add(sensorData);
+                }
+            }
+        }
     }
 
     private class PersistDataTask extends AsyncTask<String, Void, Boolean> {
