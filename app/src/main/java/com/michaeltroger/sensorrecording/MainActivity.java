@@ -263,7 +263,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             try {
                 if (file.exists() && !file.isDirectory()) {
                     mFileWriter = new FileWriter(filePath, true);
-                    writer = new CSVWriter(mFileWriter);
+                    writer = new CSVWriter(mFileWriter, CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 
                     final List<String> data = new ArrayList<>();
 
@@ -287,7 +287,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                 } else {
                     mFileWriter = new FileWriter(filePath);
-                    writer = new CSVWriter(mFileWriter);
+                    writer = new CSVWriter(mFileWriter, CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 
                     dataAsArray = mLabels.toArray(new String[mLabels.size()]);
                     writer.writeNext(dataAsArray);
