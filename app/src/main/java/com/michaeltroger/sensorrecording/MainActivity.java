@@ -1,5 +1,7 @@
 package com.michaeltroger.sensorrecording;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.databinding.DataBindingUtil;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -8,6 +10,8 @@ import android.hardware.SensorManager;
 import android.os.AsyncTask;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -38,6 +42,7 @@ import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1;
     private SensorManager mSensorManager;
     private List<Sensor> mSensors = new ArrayList<>();
     private List<String> mLabels = new ArrayList<>();
@@ -67,7 +72,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         final List<Sensor> sensors = mSensorManager.getSensorList(Sensor.TYPE_ALL);
+        setupCheckboxes(sensors);
+    }
 
+    private void setupCheckboxes(final List<Sensor> sensors) {
         int id = 0;
         for (final Sensor sensor : sensors) {
             final CheckBox checkBox = new CheckBox(this);
@@ -91,9 +99,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
+    private void requestPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE
+            );
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        requestPermission();
     }
 
     @Override
